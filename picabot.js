@@ -6,7 +6,7 @@ const google = require("googleapis");
 const youtube = google.youtube("v3");
 //var config = JSON.parse(fs.readFileSync('./config.json', 'utf-8'));
 const bot = new Discord.Client();
-const prefix = "$";
+const prefix = ".";
 const botChannelName = "icwbot2";
 var botChannel;
 var fortunes = ["It is certain", "It is decidedly so", "Without a doubt", "Yes definitely", "You may rely of it", "As I see it, yes", "Most likely", "Outlook good", "Yes", "Signs point to yes", "Reply hazy try again", "Ask again later", "Better not tell you now", "Cannot predict now", "Concentrate and ask again", "Dont count on it", "My reply is no", "My sources say no", "Outlook not so good", "Very doubtful"];
@@ -23,10 +23,6 @@ bot.on("ready", function() {
 bot.on("disconnect", function() {
 	console.log("Bot disconnected");
 	process.exit(1);
-});
-bot.on("guildMemberAdd", function(member) {
-	member.guild.defaultChannel.send(`Welcome to the server, ${member}! :smile:`);
-	member.guild.defaultChannel.send(`You can type \`${prefix}help\` at anytime to see my commands`);
 });
 
 bot.on("messageUpdate", function(oldMessage, newMessage) {
@@ -66,7 +62,7 @@ bot.on("message", function(message) {
 	command = command.slice(prefix.length);
 
 	if (command === "help") {
-		message.author.send("```Music commands are: \n   play     (add your music in the queue) \n   pause    (pause the player) \n   resume   (resume your player) \n volume   (for set volume)  \n   skip     (for next song) \n   prev     (for previous song) \n   stop     (stop & clear your player) \n   queue    (check queue list) \n   song     (view now playing) \n   random   (playing random song) ```", {reply: message});
+		message.author.send("```Music commands are: \n   play     (add your music in the queue) \n   pause    (pause the player) \n   resume   (resume your player) \n   skip     (for next song) \n   prev     (for previous song) \n   stop     (stop & clear your player) \n   queue    (check queue list) \n   song     (view now playing) \n   random   (playing random song) ```", {reply: message});
 	}
 
 	if (command === "play") {
@@ -97,7 +93,7 @@ bot.on("message", function(message) {
 					}
 				});
 			} else {
-				message.channel.send(`You can search for a youtube song with \`${prefix}yt <query>\``, { reply: message });
+				message.channel.send(`You can search for a youtube song with \`${prefix}play <query>\``, { reply: message });
 			}
 		} else {
 			message.channel.send("You can't hear my music if you're not in a voice channel :cry:", { reply: message });
@@ -106,12 +102,16 @@ bot.on("message", function(message) {
 
 	if (command === "resume") {
 		if (message.member.voiceChannel !== undefined) {
-			if (serverQueue && !serverQueue.playing) {
-				serverQueue.playing = true;
-				dispatcher.resume();
-				return message.channel.send('▶ Resumed the music for you!');
+			if (!message.guild.me.voiceChannel) {
+				message.channel.send("bot is not in voice channel and nothing to play", { reply: message });
+					return;
 			}
-			return message.channel.send('There is nothing playing.');
+				if (serverQueue && !serverQueue.playing) {
+					serverQueue.playing = true;
+					dispatcher.resume();
+					return message.channel.send('▶ Resumed the music for you!');
+				}
+				return message.channel.send('There is nothing playing.');
 		} else {
 			message.channel.send("You can't resume music if you're not in a voice channel :cry:", { reply: message });
 		}
@@ -119,12 +119,16 @@ bot.on("message", function(message) {
 
 	if (command === "pause") {
 		if (message.member.voiceChannel !== undefined) {
-			if (serverQueue && serverQueue.playing) {
-				serverQueue.playing = false;
-				dispatcher.pause();
-				return message.channel.send('⏸ Paused the music for you!');
+			if (!message.guild.me.voiceChannel) {
+				message.channel.send("bot is not in voice channel and nothing to play", { reply: message });
+					return;
 			}
-			return message.channel.send('There is nothing playing.');
+				if (serverQueue && serverQueue.playing) {
+					serverQueue.playing = false;
+					dispatcher.pause();
+					return message.channel.send('⏸ Paused the music for you!');
+				}
+				return message.channel.send('There is nothing playing.');
 		} else {
 			message.channel.send("You can't pause music if you're not in a voice channel :cry:", { reply: message });
 		}
@@ -132,17 +136,25 @@ bot.on("message", function(message) {
 
 	if (command === "prev") {
 		if (message.member.voiceChannel !== undefined) {
-			previousSongIndex = currentSongIndex;
-			var amount = Number.parseInt(args[0]);
-			if (Number.isInteger(amount)) {
-				currentSongIndex -= amount;
-			} else {
-				currentSongIndex--;
+			if (!message.guild.me.voiceChannel) {
+				message.channel.send("bot is not in voice channel and nothing to play", { reply: message });
+					return;
 			}
-			if (currentSongIndex < 0) {
-				currentSongIndex = 0;
-			}
-			dispatcher.end("prev");
+				if (serverQueue.songs.length > 0) {
+					previousSongIndex = currentSongIndex;
+					var amount = Number.parseInt(args[0]);
+					if (Number.isInteger(amount)) {
+						currentSongIndex -= amount;
+					} else {
+						currentSongIndex--;
+					}
+					if (currentSongIndex < 0) {
+						currentSongIndex = 0;
+					}
+					dispatcher.end("prev");
+				} else {
+					message.channel.send("There are no more songs :sob:", { reply: message });
+				}
 		} else {
 			message.channel.send("You can't prev music if you're not in a voice channel :cry:", { reply: message });
 		}
@@ -151,28 +163,38 @@ bot.on("message", function(message) {
 
 	if (command === "skip") {
 		if (message.member.voiceChannel !== undefined) {
-			if (serverQueue.songs.length > 0) {
-				previousSongIndex = currentSongIndex;
-				var amount = Number.parseInt(args[0]);
-				if (Number.isInteger(amount)) {
-					currentSongIndex += amount;
-				} else {
-					currentSongIndex++;
-				}
-				if (currentSongIndex > serverQueue.songs.length - 1) {
-					currentSongIndex = serverQueue.songs.length - 1;
-					//bot.user.setGame(currentSong.title);
-					//Workaround since above wouldn't work
-					bot.user.setPresence({ game: { name: "", type: 0 } });
-					serverQueue.songs = [];
-					currentSongIndex = 0;
-					message.member.voiceChannel.leave();
-					message.channel.send("Finished playing the song queue");
-				}
-				dispatcher.end("next");
-			} else {
-				message.channel.send("There are no more songs :sob:", { reply: message });
+			if (!message.guild.me.voiceChannel) {
+				message.channel.send("bot is not in voice channel and nothing to play", { reply: message });
+					return;
 			}
+				if (serverQueue.songs.length > 0) {
+					previousSongIndex = currentSongIndex;
+					var amount = Number.parseInt(args[0]);
+					if (Number.isInteger(amount)) {
+						currentSongIndex += amount;
+					} else {
+						currentSongIndex++;
+					}
+					if (currentSongIndex > serverQueue.songs.length - 1) {
+						currentSongIndex = serverQueue.songs.length - 1;
+						//bot.user.setGame(currentSong.title);
+						//Workaround since above wouldn't work
+						bot.user.setPresence({ game: { name: "", type: 0 } });
+						serverQueue.songs = [];
+						currentSongIndex = 0;
+						message.member.voiceChannel.leave();
+						var finishembed = new Discord.RichEmbed()
+						.setColor(0x00FFFF)
+						.setAuthor("Finished playing because no more song in the queue", "https://cdn.discordapp.com/attachments/398789265900830760/405592021579989003/videotogif_2018.01.24_10.46.57.gif")
+						.setDescription("please add more song if you like 🎧")
+						.setFooter("Developed by: PK#1650 ", "https://cdn.discordapp.com/attachments/399064303170224131/405585474988802058/videotogif_2018.01.24_10.14.40.gif")
+						.setTimestamp();
+						message.channel.send({embed: finishembed});
+					}
+					dispatcher.end("next");
+				} else {
+					message.channel.send("There are no more songs :sob:", { reply: message });
+				}
 		} else {
 			message.channel.send("You can't hear my music if you're not in a voice channel :cry:", { reply: message });
 		}
@@ -180,19 +202,27 @@ bot.on("message", function(message) {
 
 	if (command === "goto") {
 		if (message.member.voiceChannel !== undefined) {
-			var index = Number.parseInt(args[0]);
-			if (Number.isInteger(index)) {
-				previousSongIndex = currentSongIndex;
-				currentSongIndex = index - 1;
-				if (currentSongIndex < 0) {
-					currentSongIndex = 0;
-				} else if (currentSongIndex > serverQueue.length - 1) {
-					currentSongIndex = serverQueue.length - 1;
-				}
-				dispatcher.end("goto");
-			} else {
-				message.channel.send(`\`${args[0]}\` is an invalid index`, { reply: message });
+			if (!message.guild.me.voiceChannel) {
+				message.channel.send("bot is not in voice channel and nothing to play", { reply: message });
+					return;
 			}
+				if (serverQueue.songs.length > 0) {
+					var index = Number.parseInt(args[0]);
+					if (Number.isInteger(index)) {
+						previousSongIndex = currentSongIndex;
+						currentSongIndex = index - 1;
+						if (currentSongIndex < 0) {
+							currentSongIndex = 0;
+						} else if (currentSongIndex > serverQueue.length - 1) {
+							currentSongIndex = serverQueue.length - 1;
+						}
+						dispatcher.end("goto");
+					} else {
+						message.channel.send(`\`${args[0]}\` is an invalid index`, { reply: message });
+					}
+				} else{
+					message.channel.send("There are no more songs :sob:", {reply: message});
+				}
 		} else {
 			message.channel.send("You can't hear my music if you're not in a voice channel :cry:", { reply: message });
 		}
@@ -200,12 +230,16 @@ bot.on("message", function(message) {
 
 	if (command === "random") {
 		if (message.member.voiceChannel !== undefined) {
-			if (serverQueue.songs.length > 0) {
-				currentSongIndex = Math.floor(Math.random() * serverQueue.songs.length);
-				dispatcher.end("random");
-			} else {
-				message.channel.send("There are no more songs :sob:", { reply: message });
+			if (!message.guild.me.voiceChannel) {
+				message.channel.send("bot is not in voice channel and nothing to play", { reply: message });
+					return;
 			}
+				if (serverQueue.songs.length > 0) {
+					currentSongIndex = Math.floor(Math.random() * serverQueue.songs.length);
+					dispatcher.end("random");
+				} else {
+					message.channel.send("There are no more songs :sob:", { reply: message });
+				}
 		} else {
 			message.channel.send("You can't hear my music if you're not in a voice channel :cry:", { reply: message });
 		}
@@ -224,7 +258,13 @@ bot.on("message", function(message) {
 					currentSongIndex = 0;
 					serverQueue.songs = [];
 					message.member.voiceChannel.leave();
-					message.channel.send("Clearing queue and stopping music!");
+					var stopembed = new Discord.RichEmbed()
+						.setColor(0x008000)
+						.setAuthor("Finished playing by stop command", "https://cdn.discordapp.com/attachments/398789265900830760/405592021579989003/videotogif_2018.01.24_10.46.57.gif")
+						.setDescription("thanks for using see you soon bye bye 👋")
+						.setFooter("Stoped by: " + message.author.username.toString(), message.author.avatarURL)
+						.setTimestamp();
+					message.channel.send({embed: stopembed});
 				}
 				/*else if(args.length > 0){
 					var index = Number.parseInt(args[0]);
@@ -267,27 +307,49 @@ bot.on("message", function(message) {
 	}
 
 	if (command === "song") {
-		if (serverQueue.songs.length > 0) {
-			message.channel.send(`The current song is \`${serverQueue.songs[currentSongIndex].title}\` :musical_note:, added by ${serverQueue.songs[currentSongIndex].user}`, { reply: message });
-		} else {
-			message.channel.send("No song is in the queue", { reply: message });
+		if (!message.guild.me.voiceChannel) {
+			message.channel.send("bot is not in voice channel and nothing to play", { reply: message });
+				return;
 		}
+			if (serverQueue.songs.length > 0) {
+				var songembed = new Discord.RichEmbed()
+				.setColor(0xFF007F)
+				.setAuthor(`The current song is \`${serverQueue.songs[currentSongIndex].title}\` 🎧`)
+				.setDescription("link here: " + `[click](${serverQueue.songs[currentSongIndex].url})`)
+				.setThumbnail(`${serverQueue.songs[currentSongIndex].thumbnail}`)
+				.setFooter(`Added by ${serverQueue.songs[currentSongIndex].user}`, serverQueue.songs[currentSongIndex].usravatar)
+				.setTimestamp();
+				message.channel.send({embed: songembed});
+			} else {
+				message.channel.send("No song is in the queue", { reply: message });
+			}
 	}
 
 	if (command === "queue") {
-		if (serverQueue.songs.length > 0) {
-			var songList = "";
-			for (var i = 0; i < serverQueue.songs.length; i++) {
-				if (i === currentSongIndex) {
-					songList += `__**\`${i + 1}. ${serverQueue.songs[i].title}\`**__\n`;
-				} else {
-					songList += `\`${i + 1}. ${serverQueue.songs[i].title}\`\n`;
-				}
-			}
-			message.channel.send("The song queue currently has:\n" + songList, { reply: message });
-		} else {
-			message.channel.send("No song is in the queue", { reply: message });
+		if (!message.guild.me.voiceChannel) {
+			message.channel.send("bot is not in voice channel and nothing to play", { reply: message });
+				return;
 		}
+			if (serverQueue.songs.length > 0) {
+				var songList = "";
+				for (var i = 0; i < serverQueue.songs.length; i++) {
+					if (i === currentSongIndex) {
+						songList += `__**\`${i + 1}. ${serverQueue.songs[i].title}\`**__\n`;
+					} else {
+						songList += `\`${i + 1}. ${serverQueue.songs[i].title}\`\n`;
+					}
+				}
+				var icon = message.guild.iconURL;
+				var queueembed = new Discord.RichEmbed()
+				.setColor(0xFF007F)
+				.setAuthor("The song queue of " + message.guild.name + " currently has:", icon.toString())
+				.setDescription(`${songList}`)
+				.setFooter("Developed by: PK#1650 ", "https://cdn.discordapp.com/attachments/399064303170224131/405585474988802058/videotogif_2018.01.24_10.14.40.gif")
+				.setTimestamp();
+				message.channel.send({embed: queueembed});
+			} else {
+				message.channel.send("No song is in the queue", { reply: message });
+			}
 	}
 
 	if (command === "volume") {
@@ -304,16 +366,23 @@ bot.on("message", function(message) {
 						message.channel.send("Invalid Volume! Please provide a volume from 1 to 100.");
 						return;
 					}
-				//volume[message.guild.id] = Number(args[1]) / 100;
-				//server.dispatcher = connection.playStream(YTDL(video.url, { filter: "audioonly" }));
-				//var server = servers[message.guild.id];
-				//if (serverQueue.dispatcher) {
+						if (typeof(volumeLevel) !== "number") {
+							message.channel.send(`please provide a valid input. example \`${prefix}volume 100\``, { reply: message });
+							return;
+					  	}
 				serverQueue.volume[message.guild.id] = args[1];
 				dispatcher.setVolumeLogarithmic(args[1] / 80);
-				message.channel.send(`Volume set: ${args[1]}%`);
+				var setvolembed = new Discord.RichEmbed()
+					.setColor(0xFFEF00)
+					.setAuthor("volume controls", "https://cdn.discordapp.com/attachments/398789265900830760/405592021579989003/videotogif_2018.01.24_10.46.57.gif")
+					.setDescription(`volume set ${args[1]}%`)
+					.setThumbnail("https://images-ext-1.discordapp.net/external/v1EV83IWPZ5tg7b5NJwfZO_drseYr7lSlVjCJ_-PncM/https/cdn.discordapp.com/icons/268683615632621568/168a880bdbc1cb0b0858f969b2247aa3.jpg?width=80&height=80")
+					.setFooter("Changed by: " + message.author.username.toString(), message.author.avatarURL)
+					.setTimestamp();
+				message.channel.send({embed: setvolembed});
 				//}
 		} else {
-			message.channel.send("You can't hear my music if you're not in a voice channel :cry:", { reply: message });
+			message.channel.send("you cant change volume if you are not in voice channel", { reply: message});
 		}
 	}
 });
@@ -322,9 +391,11 @@ var addSong = function(message, url) {
 	const serverQueue = songQueue.get(message.guild.id);
 	ytdl.getInfo(url).then(function(info) {
 		var song = {};
+		song.thumbnail = info.thumbnail_url;
 		song.title = info.title;
 		song.url = url;
 		song.user = message.author.username;
+		song.usravatar = message.author.avatarURL;
 
 		//message.channel.send(song.title + " info retrieved successfully");
 		if (!serverQueue) {
@@ -332,7 +403,7 @@ var addSong = function(message, url) {
 				textChannel: message.channel,
 				connection: null,
 				songs: [],
-				volume: 3,
+				volume: [],
 				playing: true
 			};
 
@@ -346,7 +417,15 @@ var addSong = function(message, url) {
 		}
 		//message.channel.send("queuecontrsuct pushed successfully.");
 		else {
-			message.channel.send(`I have added \`${info.title}\` to the song queue! :headphones:`, { reply: message });
+			var addsongembed = new Discord.RichEmbed()
+			.setColor(0xCC0000)
+			.setAuthor(`I have added \`${info.title}\` to the song queue!`, "https://cdn.discordapp.com/attachments/398789265900830760/405592021579989003/videotogif_2018.01.24_10.46.57.gif")
+			.setDescription("link here: " + `[click](${url})`)
+			.setURL(`${url}`)
+			.setThumbnail(`${song.thumbnail}`)
+			.setFooter("Added by: " + message.author.username.toString(), message.author.avatarURL)
+			.setTimestamp();
+			message.channel.send({embed: addsongembed});
 
 			serverQueue.songs.push(song);
 		}
@@ -376,7 +455,15 @@ var playSong = function(message, connection) {
 		//message.channel.send("stream defined correctly");
 		dispatcher = connection.playStream(stream, { volume: serverQueue.volume[message.guild.id] / 80});
 		//message.channel.send("dispatcher defined correctly");
-		message.channel.send(`Now ${(shuffle) ? "randomly " : ""}playing \`${currentSong.title}\` :musical_note:, added by ${currentSong.user}`);
+		var nowplayembed = new Discord.RichEmbed()
+		.setColor(0x002FA7)
+		.setAuthor(`Now ${(shuffle) ? "randomly " : ""}playing \`${currentSong.title}\``, "https://cdn.discordapp.com/attachments/398789265900830760/405592021579989003/videotogif_2018.01.24_10.46.57.gif")
+		.setDescription("link here: " + `[click](${currentSong.url})`)
+		.setURL(`${currentSong.url}`)
+		.setThumbnail(`${currentSong.thumbnail}`)
+		.setFooter("Requested by: " + `${currentSong.user}`, currentSong.usravatar)
+		.setTimestamp();
+		message.channel.send({embed: nowplayembed});
 		//bot.user.setGame(currentSong.title);
 		//Workaround since above wouldn't work
 		dispatcher.player.on("warn", console.warn);
@@ -402,7 +489,13 @@ var playSong = function(message, connection) {
 						//bot.user.setGame(currentSong.title);
 						//Workaround since above wouldn't work
 						message.member.voiceChannel.leave();
-						message.channel.send("Finished playing the song queue");
+						var finishembed = new Discord.RichEmbed()
+						.setColor(0x008000)
+						.setAuthor("Finished playing because no more song in the queue", "https://cdn.discordapp.com/attachments/398789265900830760/405592021579989003/videotogif_2018.01.24_10.46.57.gif")
+						.setDescription("please add more song if you like 🎧")
+						.setFooter("Developed by: PK#1650 ", "https://cdn.discordapp.com/attachments/399064303170224131/405585474988802058/videotogif_2018.01.24_10.14.40.gif")
+						.setTimestamp();
+						message.channel.send({embed: finishembed});
 					} else {
 						setTimeout(function() {
 							playSong(message, connection);
