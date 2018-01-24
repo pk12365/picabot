@@ -6,7 +6,7 @@ const google = require("googleapis");
 const youtube = google.youtube("v3");
 //var config = JSON.parse(fs.readFileSync('./config.json', 'utf-8'));
 const bot = new Discord.Client();
-const prefix = "$";
+const prefix = ".";
 const botChannelName = "icwbot2";
 var botChannel;
 var fortunes = ["It is certain", "It is decidedly so", "Without a doubt", "Yes definitely", "You may rely of it", "As I see it, yes", "Most likely", "Outlook good", "Yes", "Signs point to yes", "Reply hazy try again", "Ask again later", "Better not tell you now", "Cannot predict now", "Concentrate and ask again", "Dont count on it", "My reply is no", "My sources say no", "Outlook not so good", "Very doubtful"];
@@ -366,7 +366,7 @@ bot.on("message", function(message) {
 						message.channel.send("Invalid Volume! Please provide a volume from 1 to 100.");
 						return;
 					}
-						if (typeof(volumeLevel) !== "number") {
+						if (typeof(args[1]) !== "number") {
 							message.channel.send(`please provide a valid input. example \`${prefix}volume 100\``, { reply: message });
 							return;
 					  	}
