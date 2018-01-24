@@ -366,7 +366,7 @@ bot.on("message", function(message) {
 						message.channel.send("Invalid Volume! Please provide a volume from 1 to 100.");
 						return;
 					}
-						if (typeof(args[1]) !== "number") {
+						if (args[1] !== "number") {
 							message.channel.send(`please provide a valid input. example \`${prefix}volume 100\``, { reply: message });
 							return;
 					  	}
