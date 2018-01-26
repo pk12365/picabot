@@ -63,8 +63,20 @@ bot.on("message", function(message) {
 
 	if (command === "help") {
 		message.author.send("```Music commands are: \n   play     (add your music in the queue) \n   pause    (pause the player) \n   resume   (resume your player) \n   skip     (for next song) \n   prev     (for previous song) \n   stop     (stop & clear your player) \n   queue    (check queue list) \n   song     (view now playing) \n   random   (playing random song) ```", {reply: message});
-	}
+    }
 
+    if (command === "uptime") {
+        var days = Math.floor(bot.uptime / 86400000000000);
+		var hours = Math.floor(bot.uptime / 3600000);
+		var minutes = Math.floor((bot.uptime % 3600000) / 60000);
+		var seconds = Math.floor(((bot.uptime % 360000) % 60000) / 1000);
+		const uptimeembed = new Discord.RichEmbed()
+		.setColor([0, 38, 255])
+		.addField('Uptime', `${days} days, ${hours} hours, ${minutes} minutes, ${seconds} seconds`);
+		message.channel.send({embed: uptimeembed});
+    }
+
+//music commands
 	if (command === "play") {
 		if (message.member.voiceChannel !== undefined) {
 			if (args.length > 0) {
