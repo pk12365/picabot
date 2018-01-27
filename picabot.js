@@ -1,5 +1,5 @@
 require("dotenv").config();
-const Discord = require("discord.js");
+const {Discord, TextChannel} = require("discord.js");
 const ytdl = require("ytdl-core");
 const fs = require("fs");
 const google = require("googleapis");
@@ -8,7 +8,7 @@ const youtube = google.youtube("v3");
 const bot = new Discord.Client();
 const prefix = "$";
 const botChannelName = "icwbot2";
-var botChannel;
+const botlogchannel = "406504806954565644";
 var fortunes = ["It is certain", "It is decidedly so", "Without a doubt", "Yes definitely", "You may rely of it", "As I see it, yes", "Most likely", "Outlook good", "Yes", "Signs point to yes", "Reply hazy try again", "Ask again later", "Better not tell you now", "Cannot predict now", "Concentrate and ask again", "Dont count on it", "My reply is no", "My sources say no", "Outlook not so good", "Very doubtful"];
 var dispatcher;
 const songQueue = new Map();
@@ -19,9 +19,11 @@ var autoremove = false;
 
 bot.on("ready", function() {
 	console.log("Bot ready");
+	bot.channels.get(botlogchannel).send("bot ready");
 });
 bot.on("disconnect", function() {
 	console.log("Bot disconnected");
+	bot.channels.get(botlogchannel).send("bot disconnected");
 	process.exit(1);
 });
 
@@ -31,8 +33,11 @@ bot.on("messageUpdate", function(oldMessage, newMessage) {
 
 bot.login(process.env.BOTTOKEN).then(function() {
 	console.log("Bot logged in");
+	bot.user.setPresence({status: `streaming`, game:{name: `${prefix}help | ${bot.users.size} Users`,type: `STREAMING`,url: `https://www.twitch.tv/pardeepsingh12365`}});
+	bot.channels.get(botlogchannel).send("bot logged in");
 }).catch(console.log);
 //bot.login(config.token);
+
 
 fs.readFile("save.json", function(err, data) {
 	if (err) {
@@ -49,6 +54,7 @@ fs.readFile("save.json", function(err, data) {
 });
 
 bot.on("message", function(message) {
+	if (!(message.channel instanceof Textchannel)) return undefined;
 	const serverQueue = songQueue.get(message.guild.id);
 
 	if (message.author.bot) return undefined;
@@ -63,8 +69,63 @@ bot.on("message", function(message) {
 
 	if (command === "help") {
 		message.author.send("```Music commands are: \n   play     (add your music in the queue) \n   pause    (pause the player) \n   resume   (resume your player) \n   skip     (for next song) \n   prev     (for previous song) \n   stop     (stop & clear your player) \n   queue    (check queue list) \n   song     (view now playing) \n   random   (playing random song) ```", {reply: message});
+    }
+/*----------------------------------------------------------------------------------------------------------------
+                                            until commands
+------------------------------------------------------------------------------------------------------------------*/
+    if (command === "say") {
+        var args1 = message.content.split(/[ ]+/);
+		message.delete();
+		message.channel.send(args1.join("").substring(4));
+    }
+
+    if (command === "discrim") {
+	    const discrim = message.content.split(' ')[1];
+	    if (!discrim) return message.reply("oops! I could not find the discriminator that you had given.");
+	    if (typeof discrim !== 'integer')
+		    if (discrim.size < 4) return message.reply("Don't you know that discrims are 4 numbers? -.-");
+	    if (discrim.size > 4) return message.reply("Don't you know that discrims are 4 numbers? -.-");
+	    let members = bot.users.filter(c=>c.discriminator===discrim).map(c=>c.username).join('\n');
+	    if (!members) return message.reply("404 | No members have that discriminator!");
+	    let disembed = new Discord.RichEmbed()
+	    .setTitle("ICW Discrim Finder")
+	    .setDescription("Here are the discriminators I found!")
+	    .addField("Members:", `${members}#${discrim}`)
+	    .setColor('#008000');
+	    message.channel.send({embed: disembed});
+    }
+/*---------------------------------------------------------------------------------------------------------------------
+info commands
+----------------------------------------------------------------------------------------------------------------------*/
+	if (command === "invite") {
+		message.author.send("Invite URL: https://discordapp.com/oauth2/authorize?client_id=376292306233458688&scope=bot");
 	}
 
+	if (command === "info") {
+		var infoembed = new Discord.RichEmbed()
+		.setAuthor("Hi " + message.author.username.toString(), message.author.avatarURL)
+		.setTitle("info")
+		.setColor()
+		.setDescription(`this bot for music and fun \nDevloped by PK#1650 \nTry with ${prefix}help \nsupport server:\n[link](https://discord.gg/zFDvBay) \nbot invite link:\n[invite](https://discordapp.com/oauth2/authorize?client_id=376292306233458688&scope=bot)`)
+		.setThumbnail("https://images-ext-1.discordapp.net/external/v1EV83IWPZ5tg7b5NJwfZO_drseYr7lSlVjCJ_-PncM/https/cdn.discordapp.com/icons/268683615632621568/168a880bdbc1cb0b0858f969b2247aa3.jpg?width=80&height=80")
+		.setFooter("Developed by: PK#1650 ", "https://cdn.discordapp.com/attachments/399064303170224131/405585474988802058/videotogif_2018.01.24_10.14.40.gif")
+		.setTimestamp();
+		message.channel.send({embed: infoembed});
+	}
+
+    if (command === "uptime") {
+        var days = Math.floor(bot.uptime / 86400000000000);
+		var hours = Math.floor(bot.uptime / 3600000);
+		var minutes = Math.floor((bot.uptime % 3600000) / 60000);
+		var seconds = Math.floor(((bot.uptime % 360000) % 60000) / 1000);
+		const uptimeembed = new Discord.RichEmbed()
+		.setColor([0, 38, 255])
+		.addField('Uptime', `${days} days, ${hours} hours, ${minutes} minutes, ${seconds} seconds`);
+		message.channel.send({embed: uptimeembed});
+    }
+/*------------------------------------------------------------------------------------------
+music commands
+-------------------------------------------------------------------------------------------*/
 	if (command === "play") {
 		if (message.member.voiceChannel !== undefined) {
 			if (args.length > 0) {
@@ -470,7 +531,7 @@ var playSong = function(message, connection) {
 		dispatcher.on("warn", console.warn);
 		dispatcher.on("error", console.error);
 		dispatcher.once("end", function(reason) {
-			console.log("Song ended because: " + reason);
+			bot.channels.get(botlogchannel).send("Song ended because: " + reason);
 			if (reason === "user" || reason === "Stream is not generating quickly enough.") {
 				if (autoremove) {
 					serverQueue.splice(currentSongIndex, 1);
